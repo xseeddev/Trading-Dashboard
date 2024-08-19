@@ -1,0 +1,11 @@
+{
+    "trade_operation": "-1",
+    "buy_strike": 23350,
+    "sell_strike": 23350,
+    "option_type": "PE",
+    "expiry_pref": 2,
+    "nf_target": 21,
+    "nf_sl": 21,
+    "pnl_target": 12,
+    "pnl_sl": 212
+}
