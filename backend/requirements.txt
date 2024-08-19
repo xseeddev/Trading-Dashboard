@@ -1,0 +1,13 @@
+numpy
+pandas
+pandas-ta
+pause
+requests
+onetimepass
+Flask
+flask-cors
+pyjwt
+smartapi-python
+websocket-client
+pyotp
+logzero
