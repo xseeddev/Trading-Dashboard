@@ -12,5 +12,15 @@
         "21:15:02  swetarka: login successfull",
         "21:15:03  Market clossing bell",
         "21:15:03  algo now in sleep mode"
+    ],
+    "2024-19-08": [
+        {
+            "time": "13:13:46",
+            "message": "Your log message here"
+        },
+        {
+            "time": "13:14:10",
+            "message": "Your log message here"
+        }
     ]
 }
