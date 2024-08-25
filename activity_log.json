@@ -1,0 +1,41 @@
+{
+    "2024-25-08": [
+        {
+            "time": "09:58:01",
+            "message": "sam: Login Success"
+        },
+        {
+            "time": "09:58:01",
+            "message": {
+                "status": true,
+                "message": "SUCCESS",
+                "errorcode": "",
+                "data": {
+                    "clientcode": "P57671617",
+                    "name": "PRADIPTA MONDAL",
+                    "email": "",
+                    "mobileno": "",
+                    "exchanges": [
+                        "nse_fo",
+                        "nse_cm",
+                        "cde_fo",
+                        "ncx_fo",
+                        "bse_fo",
+                        "bse_cm",
+                        "mcx_fo"
+                    ],
+                    "products": [
+                        "MARGIN",
+                        "MIS",
+                        "NRML",
+                        "CNC",
+                        "CO",
+                        "BO"
+                    ],
+                    "lastlogintime": "",
+                    "broker": ""
+                }
+            }
+        }
+    ]
+}

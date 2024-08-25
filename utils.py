@@ -353,18 +353,25 @@ class Utils:
 
 	@staticmethod
 	def write_log(message):
+		current_date = datetime.now().strftime("%Y-%d-%m")
+		current_time = datetime.now().strftime("%H:%M:%S")
+		log_entry = {"time": current_time, "message": message}
 		try:
-			with file_lock:
-				prev_logs = json.load(open(r'C:\algo\backend\activity_log.json', 'r'))
-				if datetime.now().strftime("%Y-%d-%m") not in prev_logs:
-					prev_logs[datetime.now().strftime("%Y-%d-%m")] = [datetime.now().strftime("%H:%M:%S")+ "  "+ message]
-				else:
-				    prev_logs[datetime.now().strftime("%Y-%d-%m")].append(datetime.now().strftime("%H:%M:%S")+ "  "+ message)
-				with open(r'C:\algo\backend\activity_log.json', 'w') as f:
-				    json.dump(prev_logs, f, indent=4)
-		except:
-			print("write_log failed" + datetime.now().strftime("%H:%M:%S"))
-			traceback.print_exc()
+			with open("activity_log.json", "r+") as f:
+				try:
+					data = json.load(f)
+				except json.JSONDecodeError:
+					data = {}
+				
+				data.setdefault(current_date, []).append(log_entry)
+				
+				f.seek(0)
+				json.dump(data, f, indent=4)
+				f.truncate()
+		except FileNotFoundError:
+			with open("activity_log.json", "w") as f:
+				json.dump({current_date: [log_entry]}, f, indent=4)
+
 
 	@staticmethod
 	def delete_closed_trades():

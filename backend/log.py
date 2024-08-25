@@ -27,4 +27,4 @@ def write_log(message):
         print(f"write_log failed: {e} at {datetime.now().strftime('%H:%M:%S')}")
 
 # Usage
-write_log("Your log message here")
+# write_log("Your log message here")
