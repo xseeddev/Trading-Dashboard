@@ -7,6 +7,9 @@ import threading
 import traceback
 import pause
 import json
+from logger import setup_logger
+
+logger = setup_logger("Main Trade kernel")
 
 now = datetime.now()
 
@@ -19,18 +22,22 @@ try:
 
             if Utils.IsTodayHoliday() == True:
                 i=1
+                logger.info("Trade Kernel Sleeping Due to holiday")
                 pause.until(datetime(now.year,now.month,now.day, 23, 58))
                 sleep(1800)
-                
-            if i==0:
+                logger.info("Holiday Finished")
+                continue
+            else:    
+                i=0
                 if datetime.now() < datetime(now.year,now.month,now.day, 8, 15):
-                    Utils.write_log("Market login @ 8:15am")
+                    logger.info("Will login to Market @ 8:15am")
                     pause.until(datetime(now.year,now.month,now.day, 8, 15))
+                    logger.info("Logged in Market")
 
                 Utils.update_script_master()
                 
                 threads = []
-                client_details = json.loads(open('user_zer.json', 'r').read().rstrip())
+                client_details = json.loads(open('user_data.json', 'r').read().rstrip())
                 read_counter = Value('i', 0)
                 total_clients = len(client_details)
                 manager = Manager()
@@ -45,11 +52,10 @@ try:
                     t.join()
 
                 Utils.delete_closed_trades()
-                Utils.write_log("Market clossing bell")
-                Utils.write_log("algo now in sleep mode")
+                logger.info("Market clossing bell")
+                logger.info("algo now in sleep mode")
                 pause.until(datetime(now.year,now.month,now.day, 23, 58))
                 sleep(900)                       
 except:
-    Utils.write_log("angel exe failed")
-    print("\n" + "angel exe failed @ " + datetime.now().strftime("%H:%M:%S"))
-    traceback.print_exc()
+    logger.info("angel exe failed")
+    logger.debug("\n" + "angel exe failed @ " + datetime.now().strftime("%H:%M:%S") + traceback.print_exc())
