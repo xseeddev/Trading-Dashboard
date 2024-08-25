@@ -8,7 +8,7 @@ import trade_exit
 import threading
 import traceback
 import requests
-import login
+import api_login
 import pause
 import json
 
@@ -18,7 +18,7 @@ reset_event = threading.Event()
 
 def func(client, user_id, password, api_key, secret_key, read_counter, total_clients, read_threads):
     try:
-        log_status, angel = login.login(3, client, user_id, password, api_key, secret_key)
+        log_status, angel = api_login.login(3, client, user_id, password, api_key, secret_key)
         sleep(5)
 
         if log_status == "pass":
