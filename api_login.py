@@ -1,26 +1,8 @@
 from SmartApi.smartConnect import SmartConnect
-from utils import Utils
 import pyotp
+from logger import setup_logger
 
-# def login(logincount, client, user_id, password, api_key, secret_key):
-#     if logincount==0:
-#        return "fail", None
-#     else:
-#         try:
-#             angel = SmartConnect(api_key)
-#             data = angel.generateSession(user_id, password, pyotp.TOTP(secret_key).now())
-#             refreshToken = data['data']['refreshToken']
-#             feedToken = angel.getfeedToken()
-#             if data['status'] == True:
-#                 print(angel.getProfile(refreshToken))
-#                 return "pass", angel
-#         except:
-#             logincount = logincount - 1
-#             Utils.write_log(client + ": login failed")
-#             print("\n" + client+ ": login failed @ " + datetime.now().strftime("%H:%M:%S"))
-#             traceback.print_exc()
-#             sleep(5)
-#             return login(logincount)
+logger = setup_logger("API Login Logger")
 
 # Refactor
 def angel_login(user_data):
@@ -37,12 +19,11 @@ def angel_login(user_data):
         refreshToken = angel_session['data']['refreshToken']
         feedToken = angel_obj.getfeedToken()
         if angel_session['status'] == True:
-            
-            Utils.write_log(username + ": Login Success")
-            Utils.write_log(angel_obj.getProfile(refreshToken))
-            print("DEB: Login Success")
+            logger.info(username + ": Login Success")
+            logger.debug(angel_obj.getProfile(refreshToken))
+            # print("DEB: Login Success")
             return "Status:Login Success",angel_obj
     except:
-        Utils.write_log(username + ": Login Failed")
-        print("DEB: Login Failure")
+        logger.info(username + ": Login Failed")
+        # print("DEB: Login Failure")
         return "Status:Login Fail",None

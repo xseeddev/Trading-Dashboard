@@ -1,6 +1,5 @@
 import json
 from api_login import angel_login
-from api_login import login
 
 #Angel Login Test
 def Login_test():
