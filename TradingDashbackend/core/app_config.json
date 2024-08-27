@@ -1,0 +1,6 @@
+{
+    "DATA_FILE": "trade_attributes.json",
+    "LOG_FILE": "activity_log.json",
+    "PASSWORD":"sudip",
+    "JWT_SECRET":"secret"
+}
