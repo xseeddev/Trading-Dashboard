@@ -24,7 +24,7 @@ const Form = ({setLoggedIn}:{setLoggedIn:Dispatch<SetStateAction<string|null>>})
 
     useEffect(()=>{
         const fetchData = async () => {
-            const response = await fetch('http://localhost:5000/api/read');
+            const response = await fetch('http://127.0.0.1:5000/api/read');
             const data = await response.json();
             setData(data);
         }
@@ -52,7 +52,7 @@ const Form = ({setLoggedIn}:{setLoggedIn:Dispatch<SetStateAction<string|null>>})
             pnl_sl: Number(newData.pnl_sl),
         };
         toast.loading('Writing data...')
-        fetch('http://localhost:5000/api/write', {
+        fetch('http://127.0.0.1:5000/api/checkToken', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ const Form = ({setLoggedIn}:{setLoggedIn:Dispatch<SetStateAction<string|null>>})
             toast.dismiss();
             if(data.success){
               toast.success('Data written successfully');
-              fetch('http://localhost:5000/api/read')
+              fetch('http://127.0.0.1:5000/api/read')
                 .then(response => response.json())
                 .then(data => setData(data));
                 return;

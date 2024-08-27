@@ -6,24 +6,25 @@ import datetime
 from datetime import timezone
 from hashlib import sha256
 import jwt
+from authentication import portal_login, check_user_login
+from logger import setup_logger
 
 
 app = Flask(__name__)
 CORS(app)  
+logger = setup_logger("Main App Logger")
 
-DATA_FILE = 'trade_attributes.json'
-LOG_FILE = 'activity_log.json'
+# Load configuration from app_config.json
+with open('app_config.json', 'r') as config_file:
+    config = json.load(config_file)
+
+DATA_FILE = config.get('DATA_FILE', 'trade_attributes.json')
+LOG_FILE = config.get('LOG_FILE', 'activity_log.json')
 
 PASSWORD = sha256(b'sudip').hexdigest()
 JWT_SECRET = 'secret'
 
-def read_json_file():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
-
-def read_activity_log():
+def read_activity_log(): # To Fix
     DATE = datetime.datetime.now().strftime("%Y-%d-%m")
     if not os.path.exists(LOG_FILE):
         return {}
@@ -35,53 +36,42 @@ def read_activity_log():
     else:
         return {}
 
-def write_json_file(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+@app.route('/api/login',methods=['POST'])
+def login():
+    portal_login()
 
+@app.route('/api/log', methods=['GET'])
+def read_log():
+    data = read_activity_log()# Fix Function
+    return jsonify(data)
 
-def verify_token(token):
-    try:
-        jwt.decode(token, JWT_SECRET, algorithms=['HS256'],options={"verify_exp": True})
-        return True
-    except jwt.ExpiredSignatureError:
-        return False
-    except jwt.InvalidTokenError:
-        return False
-
-
-@app.route('/api/read', methods=['GET'])
+@app.route('/api/read', methods=['GET'])# Fix and remove
 def read():
     data = read_json_file()
     return jsonify(data)
 
+@app.route('/api/checkToken', methods=['POST'])
+def checkToken():
+    return check_user_login()
 
-@app.route('/api/login',methods=['POST'])
-def login():
-    password = request.json['password']
-    token = jwt.encode(
-        {'password': password, 
-         'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(hours=1)}, 
-         JWT_SECRET, 
-         algorithm='HS256')
-    if password == PASSWORD:
-        return jsonify({"success":True,'token':token})
-    else:
-        return jsonify({"success":False})
+@app.route('/api/exec', methods=['POST'])
+def execute_operation():
+    return None
+    # inputparams = [{
+    #     "auth_token": token, portal auth token
+    #     "user_id": user_id,
+    #     "password": password,
+    #     "api_key": api_key,
+    #     "secret_key": secret_key,
+    #     "name": client
+    #     "Trade_attributes":trade_att        
+    # }]
 
-@app.route('/api/log', methods=['GET'])
-def read_log():
-    data = read_activity_log()
-    return jsonify(data)
+    # Check auth token
+    # get trade attributes
+    # execute trade
 
-@app.route('/api/write', methods=['POST'])
-def write():
-    token = request.headers.get('Authorization')
-    if not verify_token(token):
-        return jsonify({"success":False,"message": "Invalid token"}), 401
-    data = request.json['data']
-    write_json_file(data)
-    return jsonify({"success":True,"message": "Data written successfully"}), 200
+    # return "Status"
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -23,7 +23,7 @@ function LoginPage({setLoggedIn,loggedIn}:{setLoggedIn:Dispatch<SetStateAction<n
   const onSubmit: SubmitHandler<LoginFormValues> = (data) => {
     toast.loading('Logging In');
     const hashedPassword = SHA256(data.password).toString();
-    fetch('http://localhost:5000/api/login', {
+    fetch('http://127.0.0.1:5000/api/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
