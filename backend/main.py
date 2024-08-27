@@ -11,7 +11,7 @@ from logger import setup_logger
 
 
 app = Flask(__name__)
-CORS(app)  
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 logger = setup_logger("Main App Logger")
 
 # Load configuration from app_config.json

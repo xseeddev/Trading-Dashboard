@@ -1,6 +1,8 @@
 import json
 from api_login import angel_login
-
+import sys
+sys.path.insert(0, './backend/utils/')
+from authentication import portal_verify_token
 ## Temp code testing file
 
 #Angel Login Test
@@ -15,5 +17,9 @@ def Login_test():
         print("DEB:",status)
         break
 
+
+# Backend Function testing
+def func_test():
+    print(portal_verify_token("STES"))
 if __name__ == "__main__":
-    Login_test()
+    func_test()

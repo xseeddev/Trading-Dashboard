@@ -4,7 +4,9 @@ from hashlib import sha256
 import jwt
 import json
 from flask import jsonify, request
-from logger import setup_logger
+import sys
+sys.path.insert(0, 'utils/')
+from utils.logger import setup_logger
 
 logger = setup_logger("Main App:Auth")
 
