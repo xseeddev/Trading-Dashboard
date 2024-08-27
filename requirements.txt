@@ -6,3 +6,5 @@ sqlparse~=0.5.1
 logging
 pyjwt
 requests
+smartapi-python
+pyotp
