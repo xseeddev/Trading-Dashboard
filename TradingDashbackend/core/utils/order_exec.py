@@ -311,7 +311,24 @@ def sell_order(angel, client, sell_qty, sell_token, sell_symbol):
         logger.debug("sell_order exe failed" + traceback.print_exc())
         
 
-def order_exe(angel, client, buy_strike, sell_strike, option_type, expiry):
+def new_trade_exec(inputparams):
+
+    # inputparams = [{
+    #     "angel_obj":angel,
+    #     "client":client,
+    #     "buy_strike":buy_strike,
+    #     "sell_strike":sell_strike,
+    #     "option_type":option_type,
+    #     "expiry":expiry
+    # }]
+    
+    angel = inputparams["angel_obj"]
+    client = inputparams["client"]
+    buy_strike = inputparams["buy_strike"]
+    sell_strike = inputparams["sell_strike"]
+    option_type = inputparams["option_type"]
+    expiry = inputparams["expiry"]
+
     try:
         buy_token, buy_symbol, sell_token, sell_symbol, qty = trade_utils.trade_req(angel, client, buy_strike, sell_strike, option_type, expiry)
         if qty>200:
@@ -325,5 +342,5 @@ def order_exe(angel, client, buy_strike, sell_strike, option_type, expiry):
         else:
            logger.info(client + ": min. margin req. not fullfilled")
     except:
-        logger.info(client + ": order exe failed")
+        logger.info(client + ": NEW TRADE exe failed")
         logger.debug("order exe failed" + traceback.print_exc())

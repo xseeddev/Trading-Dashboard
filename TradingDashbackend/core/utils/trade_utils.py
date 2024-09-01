@@ -267,8 +267,7 @@ def trade_req(angel, client, buy_leg_strike, sell_leg_strike, option_type, expir
         return buy_leg_token, buy_leg_sym, sell_leg_token, sell_leg_sym, qty
 
     except Exception as e:
-        write_log(f"{client}: trade_req failed due to {e}")
-        traceback.logger.debug_exc()
+        logger.info(f"{client}: trade_req failed due to {e}")
         return None, None, None, None, 0
     
 def update_trade_dataframe(client=None, symbol=None, token=None, buy_date=None, buy_price=None, qty=None, sell_price=None, sell_date=None, leg_status=None, leg_pnl=None):
@@ -301,7 +300,7 @@ def delete_closed_trades(file_path='trades.csv'):
             logger.debug("No closed trades to delete.")
 
     except Exception as e:
-        write_log("delete_closed_trades execution failed: " + str(e))
+        logger.info("delete_closed_trades execution failed: " + str(e))
         logger.debug("delete_closed_trades execution failed:")
         traceback.logger.debug_exc()
 
