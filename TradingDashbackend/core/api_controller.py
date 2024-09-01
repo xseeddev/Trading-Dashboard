@@ -1,6 +1,7 @@
 from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.utils.order_exec import new_trade_exec
 from TradingDashbackend.core.utils.order_exec import exit_trade_exec
+from TradingDashbackend.core.utils.order_exec import auto_exit_trade_exec
 
 from TradingDashbackend.core.utils.trade_user import TradeUser
 
@@ -62,15 +63,22 @@ def process_trade_request(inputparams):
     elif(TradeTask == "TRADE_EXIT"):
         for user in TradeUserList:
             # order_exit
-            inputparams = [{
+            params = [{
                 "angel_obj":user.angel_obj,
                 "client":user.Name,
             }]
-            exit_trade_exec(inputparams)
-            return
+            exit_trade_exec(params)
+            return None
     elif(TradeTask == "AUTO_TRADE_EXIT"):
-        for TRADE_USER in TradeUserList:
+        for user in TradeUserList:
             # auto_order_exit
-            return
+            params = [{
+                "angel_obj":user.angel_obj,
+                "client":user.Name,
+                "trade_params":TradeParams
+            }]
+    
+            auto_exit_trade_exec(params)
+            return None
     else:
         return "Status: Request Failure, Message: Invalid Trade Request"
