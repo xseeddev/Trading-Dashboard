@@ -17,6 +17,9 @@ import threading
 import calendar
 import math
 from TradingDashbackend.core.logger import setup_logger
+from TradingDashbackend.core.utils import order_exec
+from TradingDashbackend.core.master import SCRIPTS_MASTER_DF
+from TradingDashbackend.core.master import TRADES_DF
 
 
 # <------------------------- Date, day, time checking -------------------------------------->
@@ -356,6 +359,18 @@ def update_positions(angel):
         logger.debug(f"Failed to update positions: {e}")
         traceback.logger.debug_exc()
 
+def update_nf_ltp(angel, i=[0]):
+	try:
+		nf_cmp = angel.ltpData("NSE", "Nifty 50", "99926000")['data']['ltp']
+		i[0] = 0  # Reset i to 0
+		return nf_cmp
+	except:
+		i[0] += 1
+		if i[0] > 2:
+			logger.debug("nf_ltp_update failed")
+			i[0] = 0  # Reset i to 0
+		return -1
+
 # <------------------------- Math Util functions -------------------------------------->
 
 def roundOff(price): # Round off to 2 decimal places
@@ -385,44 +400,36 @@ def isTodayHoliday():
 		return False
 
 def update_script_master():
-	try:
-		url = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
-		scripts = requests.get(url).json()
-		scripts_df = pd.DataFrame.from_dict(scripts)
-		scripts_df = scripts_df.astype({'strike': float})
-		scripts_df.to_csv(r'script_master.csv', index=False)
-		logger.info("ScriptMaster updated successfully")
-	except:
-		logger.info("ScriptMaster updation unsuccessfull")
-		
-# <------------------------- Refactor Done -------------------------------------->
-
+    try:
+        url = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
+        scripts = requests.get(url).json()
+        scripts_df = pd.DataFrame.from_dict(scripts)
+        scripts_df = scripts_df.astype({'strike': float})
+        SCRIPTS_MASTER_DF = scripts_df
+        # scripts_df.to_csv(r'script_master.csv', index=False)
+        logger.info("ScriptMaster updated successfully")
+    except:
+        logger.info("ScriptMaster updation unsuccessfull")
 
 def getMarketStartTime(dateTimeObj = None):
-	return Utils.getTimeOfDay(9, 15, 0, dateTimeObj)
+    if dateTimeObj == None:
+        dateTimeObj = datetime.now()
+    dateTimeObj = dateTimeObj.replace(hour=9, minute=15, second=0, microsecond=0)
+    return dateTimeObj
 
 def getMarketEndTime(dateTimeObj = None):
-	return Utils.getTimeOfDay(15, 30, 0, dateTimeObj)
-
-
-def getTimeOfDay(hours, minutes, seconds, dateTimeObj = None):
-	if dateTimeObj == None:
-		dateTimeObj = datetime.now()
-	dateTimeObj = dateTimeObj.replace(hour=hours, minute=minutes, second=seconds, microsecond=0)
-	return dateTimeObj
-
-
-
-
-
+    if dateTimeObj == None:
+        dateTimeObj = datetime.now()
+    dateTimeObj = dateTimeObj.replace(hour=15, minute=30, second=0, microsecond=0)
+    return dateTimeObj
+		
 def isMarketOpen():
-	if Utils.isTodayHoliday():
+	if isTodayHoliday():
 		return False
 	now = datetime.now()
-	marketStartTime = Utils.getMarketStartTime()
-	marketEndTime = Utils.getMarketEndTime()
+	marketStartTime = getMarketStartTime()
+	marketEndTime = getMarketEndTime()
 	return now >= marketStartTime and now <= marketEndTime
-
 
 def isMarketClosedForTheDay():
 	# This method returns true if the current time is > marketEndTime
@@ -430,42 +437,45 @@ def isMarketClosedForTheDay():
 	if isTodayHoliday():
 		return True
 	now = datetime.now()
-	marketEndTime = Utils.getMarketEndTime()
+	marketEndTime = getMarketEndTime()
 	return now > marketEndTime
 
+def getMonthlyExpiryDayDate(dateTimeObj = None):
+    if dateTimeObj == None:
+        dateTimeObj = datetime.now()
+    year = dateTimeObj.year
+    month = dateTimeObj.month
+    lastDay = calendar.monthrange(year, month)[1] # 2nd entry is the last day of the month
+    dateTimeExpiryDay = datetime(year, month, lastDay)
+    while calendar.day_name[dateTimeExpiryDay.weekday()] != 'Thursday':
+        dateTimeExpiryDay = dateTimeExpiryDay - timedelta(days=1)
+    while isTodayHoliday(dateTimeExpiryDay) == True:
+        dateTimeExpiryDay = dateTimeExpiryDay - timedelta(days=1)
+        
+    if dateTimeExpiryDay == None:
+        dateTimeExpiryDay = datetime.now()
+        dateTimeExpiryDay = dateTimeObj.replace(hour=0, minute=0, second=0, microsecond=0)
+    return dateTimeExpiryDay
 
-
-
-
-def getMonthlyExpiryDayDate(datetimeObj = None):
-	if datetimeObj == None:
-		datetimeObj = datetime.now()
-	year = datetimeObj.year
-	month = datetimeObj.month
-	lastDay = calendar.monthrange(year, month)[1] # 2nd entry is the last day of the month
-	datetimeExpiryDay = datetime(year, month, lastDay)
-	while calendar.day_name[datetimeExpiryDay.weekday()] != 'Thursday':
-		datetimeExpiryDay = datetimeExpiryDay - timedelta(days=1)
-	while Utils.isHoliday(datetimeExpiryDay) == True:
-		datetimeExpiryDay = datetimeExpiryDay - timedelta(days=1)
-
-	datetimeExpiryDay = Utils.getTimeOfDay(0, 0, 0, datetimeExpiryDay)
-	return datetimeExpiryDay
+def getTimeOfDay(hours, minutes, seconds, dateTimeObj = None):
+    if dateTimeObj == None:
+        dateTimeObj = datetime.now()
+    dateTimeObj = dateTimeObj.replace(hour=hours, minute=minutes, second=seconds, microsecond=0)
+    return dateTimeObj
 
 
 def isTodayWeeklyExpiryDay():
-	todayMarketStartTime = Utils.getMarketStartTime()
-	expiryDateTime = Utils.getWeeklyExpiryDayDate()
-	expiryDayMarketEndTime = Utils.getMarketEndTime(expiryDateTime)
+	todayMarketStartTime = getMarketStartTime()
+	expiryDateTime = getWeeklyExpiryDayDate()
+	expiryDayMarketEndTime = getMarketEndTime(expiryDateTime)
 	if todayMarketStartTime > expiryDayMarketEndTime:
 		expiryDateTime = expiryDateTime + timedelta(days=6)
-		expiryDateTime = Utils.getWeeklyExpiryDayDate(expiryDateTime)
-	todayDate = Utils.getTimeOfToDay(0, 0, 0)
+		expiryDateTime = getWeeklyExpiryDayDate(expiryDateTime)
+	todayDate = getTimeOfDay(0, 0, 0,datetime.now())
 	print("today's date: "+ str(todayDate) + "  weekly expiry: " + str(expiryDateTime))
 	if expiryDateTime == todayDate:
 		return True
 	return False
-
 
 def getWeeklyExpiryDayDate(dateTimeObj = None):
 	if dateTimeObj == None:
@@ -476,23 +486,23 @@ def getWeeklyExpiryDayDate(dateTimeObj = None):
 	else:
 		daysToAdd = 3 - dateTimeObj.weekday()
 	datetimeExpiryDay = dateTimeObj + timedelta(days=daysToAdd)
-	while Utils.isHoliday(datetimeExpiryDay) == True:
+	while isTodayHoliday(datetimeExpiryDay) == True:
 		datetimeExpiryDay = datetimeExpiryDay - timedelta(days=1)
 
-	datetimeExpiryDay = Utils.getTimeOfDay(0, 0, 0, datetimeExpiryDay)
+	datetimeExpiryDay = getTimeOfDay(0, 0, 0, datetimeExpiryDay)
 	return datetimeExpiryDay
 
 
 def getExpiry(numWeeksPlus = 0):
-	expiryDateTime = Utils.getWeeklyExpiryDayDate()
-	todayMarketStartTime = Utils.getMarketStartTime()
-	expiryDayMarketEndTime = Utils.getMarketEndTime(expiryDateTime)
+	expiryDateTime = getWeeklyExpiryDayDate()
+	todayMarketStartTime = getMarketStartTime()
+	expiryDayMarketEndTime = getMarketEndTime(expiryDateTime)
 	if numWeeksPlus > 0:
 		expiryDateTime = expiryDateTime + timedelta(days=numWeeksPlus * 7)
-		expiryDateTime = Utils.getWeeklyExpiryDayDate(expiryDateTime)
+		expiryDateTime = getWeeklyExpiryDayDate(expiryDateTime)
 	if todayMarketStartTime > expiryDayMarketEndTime:
 		expiryDateTime = expiryDateTime + timedelta(days=6)
-		expiryDateTime = Utils.getWeeklyExpiryDayDate(expiryDateTime)
+		expiryDateTime = getWeeklyExpiryDayDate(expiryDateTime)
 
 	year = expiryDateTime.year
 	month = expiryDateTime.month
@@ -502,9 +512,8 @@ def getExpiry(numWeeksPlus = 0):
 	formatted_date = expiryDateTime.strftime('%d%b%Y').upper()
 	return formatted_date
 
-
 def getTokenInfo(df, strike_price, option_type, expiry_pref, exch_seg='NFO', instrument_type='OPTIDX', symbol='NIFTY'):
-	expiry_day = Utils.getExpiry(expiry_pref)
+	expiry_day = getExpiry(expiry_pref)
 	info = df[(df['instrumenttype'] == instrument_type) & 
 				(df['strike'] == float(strike_price*100)) &
 				(df['expiry'] == expiry_day) &
@@ -561,80 +570,20 @@ def req_margin(angel, buy_leg_token, sell_leg_token):
 	new_margin_req = int(margin_req+(margin_req * 0.20))
 	return new_margin_req
 
-
 def trade_req(angel, client, buy_leg_strike, sell_leg_strike, option_type, expiry):
-	try:
-		with file_lock:
-			script_list = pd.read_csv(r'script_master.csv', low_memory=False)
-		buy_leg_token, buy_leg_sym = Utils.getTokenInfo(df=script_list, strike_price=buy_leg_strike, option_type=option_type, expiry_pref=expiry)
-		sell_leg_token, sell_leg_sym = Utils.getTokenInfo(df=script_list, strike_price=sell_leg_strike, option_type=option_type, expiry_pref=expiry)
+    try:
+        script_list = SCRIPTS_MASTER_DF
+        buy_leg_token, buy_leg_sym = getTokenInfo(df=script_list, strike_price=buy_leg_strike, option_type=option_type, expiry_pref=expiry)
+        sell_leg_token, sell_leg_sym = getTokenInfo(df=script_list, strike_price=sell_leg_strike, option_type=option_type, expiry_pref=expiry)
 
-		avail_margin = Utils.available_margin(angel)
-		marigin_per_lot = Utils.req_margin(angel, buy_leg_token, sell_leg_token)
-		lots = int(avail_margin/marigin_per_lot)
-		qty = int(lots*25)
-		return buy_leg_token, buy_leg_sym, sell_leg_token, sell_leg_sym, qty
-	except:
-		Utils.write_log(client + ": trade_req failed")
-		traceback.print_exc()
-
-
-def update_nf_ltp(angel, i=[0]):
-	try:
-		nf_cmp = angel.ltpData("NSE", "Nifty 50", "99926000")['data']['ltp']
-		i[0] = 0  # Reset i to 0
-		return nf_cmp
-	except:
-		i[0] += 1
-		if i[0] > 2:
-			print("nf_ltp_update failed")
-			i[0] = 0  # Reset i to 0
-		return -1
-
-
-def update_holding(angel):
-	try:
-		holding = angel.holding()
-		if not holding['data']:
-			print("no holdings")
-		else:
-			holding_df = pd.DataFrame(holding['data'])
-			holding_df = holding_df.drop(['exchange', 'isin', 't1quantity', 'realisedquantity', 'authorisedquantity', 'product', 'collateralquantity',
-											'collateraltype', 'haircut', 'symboltoken', 'close', 'ltp'], axis=1)
-			message = "Holding:\n"
-			for index, row in holding_df.iterrows():
-				message += f"symbol: {row['tradingsymbol']}\n"
-				message += f"qty: {row['quantity']}\n"
-				message += f"avg_price: {row['averageprice']}\n"
-				message += f"pnl: {row['profitandloss']}\n"
-				message += f"pnl%: {row['pnlpercentage']}\n\n"
-	except:
-		traceback.print_exc()
-
-
-def update_positions(angel):
-	try:
-		sleep(2)
-		position = angel.position()
-		if not position['data']:
-			print("no positions")
-		else:
-			position_df = pd.DataFrame(position['data'])
-			position_df = position_df.drop(['symboltoken', 'symbolname', 'instrumenttype', 'priceden', 'pricenum', 'genden', 'gennum', 'precision', 'multiplier', 
-											'boardlotsize', 'exchange', 'producttype', 'symbolgroup', 'strikeprice', 'optiontype', 'expirydate', 'lotsize', 
-											'cfbuyqty', 'cfsellqty', 'cfbuyamount', 'cfsellamount', 'buyavgprice', 'sellavgprice', 'avgnetprice', 'netvalue', 
-											'totalbuyvalue', 'totalsellvalue', 'cfbuyavgprice', 'cfsellavgprice', 'netprice', 'buyqty', 'sellqty', 'buyamount', 
-											'sellamount', 'realised', 'unrealised', 'ltp', 'close'], axis=1)
-			message = "Positions:\n"
-			for index, row in position_df.iterrows():
-				message += f"symbol: {row['tradingsymbol']}\n"
-				message += f"qty: {row['netqty']}\n"
-				message += f"buy_price: {row['totalbuyavgprice']}\n"
-				message += f"sell_price: {row['totalsellavgprice']}\n"
-				message += f"pnl: {row['pnl']}\n\n"
-	except:
-		traceback.print_exc()
-
+        avail_margin = available_margin(angel)
+        marigin_per_lot = req_margin(angel, buy_leg_token, sell_leg_token)
+        lots = int(avail_margin/marigin_per_lot)
+        qty = int(lots*25)
+        return buy_leg_token, buy_leg_sym, sell_leg_token, sell_leg_sym, qty
+    except:
+        logger.info(client + ": trade_req failed")
+        traceback.print_exc()
 
 def call_ltp(angel_obj, symbol, token):
 	i = 0
@@ -651,32 +600,26 @@ def call_ltp(angel_obj, symbol, token):
 	return None
 
 
-
-
-
 def update_trade_dataframe(client=None, symbol=None, token=None, buy_date=None, buy_price=None, qty=None, sell_price=None, sell_date=None, leg_status=None, leg_pnl=None):
-	try:
-		columns = ['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl']
-		new_row = pd.Series([client, symbol, token, buy_date, buy_price, qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
-		with file_lock:
-			df = pd.read_csv(r'trades.csv')
-			df = df._append(new_row, ignore_index=True)
-			df.to_csv(r'trades.csv', index=False)
-	except:
-		Utils.write_log(client + ": trade_csv updation failed")
-		print("\n" + "trade_csv updation failed @ " + datetime.now().strftime("%H:%M:%S"))
-		traceback.print_exc()
-
-
+    try:
+        columns = ['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl']
+        new_row = pd.Series([client, symbol, token, buy_date, buy_price, qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
+        df = TRADES_DF
+        df = df._append(new_row, ignore_index=True)
+        TRADES_DF = df
+    except:
+        logger.info(client + ": trade_csv updation failed")
+        logger.debug("\n" + "trade_csv updation failed @ " + datetime.now().strftime("%H:%M:%S") + traceback.print_exc())
 
 def delete_closed_trades():
 	try:
-		df = pd.read_csv(r'trades.csv')
+		df = TRADES_DF
 		closed_trades = df[(df['leg_status'] == 'CLOSED')]
 		if not closed_trades.empty:
 			df = df.drop(closed_trades.index)
-			df.to_csv(r'trades.csv', index=False)
+			TRADES_DF = df
 	except:
-		Utils.write_log("delete_closed_trades exe failed")
-		print("delete_closed_trades exe failed")
-		traceback.print_exc()
+		logger.info("delete_closed_trades exe failed")
+		logger.debug("delete_closed_trades exe failed" + traceback.print_exc())
+          
+# <------------------------- Refactor Done -------------------------------------->

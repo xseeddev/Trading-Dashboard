@@ -1,6 +1,6 @@
 from TradingDashbackend.core.utils.api_login import angel_login
 
-class TRADE_USER:
+class TradeUser:
     Name = "Default"
     user_id = "#000000"
     password = "#000000"

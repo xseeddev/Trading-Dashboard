@@ -2,7 +2,8 @@ from utils import Utils
 from logger import setup_logger
 from time import sleep
 import traceback
-from TradingDashbackend.core.utils import trade_utils as trade_utils
+from TradingDashbackend.core.utils import trade_utils
+from TradingDashbackend.core.master import TRADES_DF
 
 logger = setup_logger("Core:Utils:Order Exec")
 # Pending Fix
@@ -344,3 +345,79 @@ def new_trade_exec(inputparams):
     except:
         logger.info(client + ": NEW TRADE exe failed")
         logger.debug("order exe failed" + traceback.print_exc())
+    
+def exit_trade_exec(inputparams):
+    # inputparams = [{
+    #     "angel_obj":angel,
+    #     "client":client,
+    # }]
+    
+    angel = inputparams["angel_obj"]
+    client = inputparams["client"]
+
+    try:
+        df = TRADES_DF
+
+        active_legs = df[(df['leg_status'] != 'CLOSED') & (df['client'] == client)]
+        active_legs = active_legs.sort_values(by='qty')
+
+        for index, row in active_legs.iterrows():
+
+            if row['qty'] < 0 :
+                buy_symbol, buy_qty, buy_price, buy_date = buy_order(angel, abs(row['qty']), row['token'], row['symbol'])
+                df.at[index, 'buy_price'] = buy_price
+                df.at[index, 'buy_date'] = buy_date
+                df.at[index, 'qty'] = abs(buy_qty)
+                df.at[index, 'leg_status'] = 'CLOSED'
+                df.at[index, 'leg_pnl'] = ((df.at[index, 'sell_price']-buy_price)*df.at[index, 'qty'])
+
+            elif row['qty'] > 0 :
+                sell_symbol, sell_qty, sell_price, sell_date = sell_order(angel, abs(row['qty']), row['token'], row['symbol'])
+                df.at[index, 'sell_price'] = sell_price
+                df.at[index, 'sell_date'] = sell_date
+                df.at[index, 'qty'] = abs(sell_qty)
+                df.at[index, 'leg_status'] = 'CLOSED'
+                df.at[index, 'leg_pnl'] = (sell_price-df.at[index, 'buy_price'])*df.at[index, 'qty']
+
+        active_legs = df[(df['leg_status'] != 'CLOSED') & (df['client'] == client)]
+        if not active_legs.empty:
+            logger.info(client + ": trade still open")
+            logger.debug("Trade Still open" + TRADES_DF)
+        else:
+            logger.info(client + ": trade exit completed successfully")
+    except:
+        Utils.write_log(client + ": trade exit failed")
+        print("\n" + client +": trade_exit exe failed")
+        traceback.print_exc()
+
+def auto_exit_trade_exec(inputparams):
+     
+    # inputparams = [{
+    #     "angel_obj":angel,
+    #     "client":client,
+    #     "trade_params":{}
+    # }]
+    
+    angel_obj = inputparams["angel_obj"]
+    client = inputparams["client"]
+    trade_params = inputparams["trade_params"]
+
+    while True:
+        nf_ltp = trade_utils.update_nf_ltp(angel_obj)
+        if nf_ltp != -1:
+            if trade_params['option_type'] == 'CE':
+                if nf_ltp > trade_params['nf_sl'] or nf_ltp < trade_params['nf_target']:
+                    params = [{
+                        "angel_obj":angel_obj,
+                        "client":client,
+                    }]
+                    exit_trade_exec(params)
+                    break
+            elif trade_params['option_type'] == 'PE':
+                if nf_ltp < trade_params['nf_sl'] or nf_ltp > trade_params['nf_target']:
+                    params = [{
+                        "angel_obj":angel_obj,
+                        "client":client,
+                    }]
+                    exit_trade_exec(params)
+                    break
