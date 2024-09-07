@@ -1,6 +1,6 @@
 from SmartApi.smartConnect import SmartConnect
 import pyotp
-from logger import setup_logger
+from TradingDashbackend.core.logger import setup_logger
 from django.http import JsonResponse
 
 logger = setup_logger("Core:Utils:Angel API Login")

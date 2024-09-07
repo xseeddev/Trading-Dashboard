@@ -1,23 +1,16 @@
 [
     {
-        "user_id": "P57671617",
-        "password": "7132",
+        "user_id": "S62823294",
+        "password": "1412",
         "api_key": "tqsMaDJK",
         "secret_key": "CYAV3OUEUZDX3IBN6M3BCS3RGM",
-        "name": "sam"
+        "name": "Test User"
     },
     {
-        "user_id": "U57686337",
+        "user_id": "S62823294",
         "password": "1412",
-        "api_key": "YVdk8PaN",
-        "secret_key": "VVP26MN5S4NNCIJKE5LTXPKPWE",
-        "name": "uddipan"
-    },
-    {
-        "user_id": "R402079",
-        "password": "7132",
-        "api_key": "MpqAAsSD",
-        "secret_key": "423DUN6RVUDKK7EEMIFXNFAXQE",
-        "name": "animesh"
+        "api_key": "tqsMaDJK",
+        "secret_key": "CYAV3OUEUZDX3IBN6M3BCS3RGM",
+        "name": "Test User 2"
     }
 ]

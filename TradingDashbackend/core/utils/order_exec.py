@@ -1,8 +1,7 @@
-from utils import Utils
-from logger import setup_logger
 from time import sleep
 import traceback
 from TradingDashbackend.core.utils import trade_utils
+from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.master import TRADES_DF
 
 logger = setup_logger("Core:Utils:Order Exec")

@@ -14,6 +14,15 @@ class TradeUser:
         self.password = password
         self.api_key = api_key
         self.secret_key = secret_key
+    
+    def __init__(self,json_obj):
+        self.Name = json_obj['name']
+        self.user_id = json_obj['user_id']
+        self.password = json_obj['password']
+        self.api_key = json_obj['api_key']
+        self.secret_key = json_obj['secret_key']
+    
+
 
     def get_angel_obj(self):
         return self.angel_obj

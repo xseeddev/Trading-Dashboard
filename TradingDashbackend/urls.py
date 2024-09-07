@@ -23,12 +23,14 @@ from django.conf.urls.static import static
 from TradingDashbackend.core import views as core_views
 from TradingDashbackend.core.logger import get_application_log
 from TradingDashbackend.core.auth import portal_validate_login
+from TradingDashbackend.core.views import portal_login
+from TradingDashbackend.core.views import portal_exec
 
 urlpatterns = [
     path("", core_views.index),
     path("admin/", admin.site.urls),
-    path("login/", portal_validate_login),
-    path("api/exec/", admin.site.urls),
+    path("login/", portal_login),
+    path("api/exec/", portal_exec),
     path("api/log/", get_application_log),
     path("__reload__/", include("django_browser_reload.urls")),
 ]

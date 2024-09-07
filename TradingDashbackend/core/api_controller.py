@@ -2,8 +2,12 @@ from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.utils.order_exec import new_trade_exec
 from TradingDashbackend.core.utils.order_exec import exit_trade_exec
 from TradingDashbackend.core.utils.order_exec import auto_exit_trade_exec
-
+from TradingDashbackend.core.auth import is_correct_user_token
 from TradingDashbackend.core.utils.trade_user import TradeUser
+from TradingDashbackend.core.logger import get_current_day_info_logs
+from TradingDashbackend.core.logger import get_current_day_debug_logs
+from django.http import JsonResponse
+from TradingDashbackend.core.master import setup_params
 
 logger = setup_logger("API Req/Res Controller")
 
@@ -14,21 +18,57 @@ def recieve_request(inputparams):
     #     "req_type": req_type,
     #     "req": {}
     # }]
+    print("DEb-1",inputparams)
+    res = is_correct_user_token(inputparams['auth_key'])
+    print("DEb-2",res)
 
-    # if(!is_correct_auth_key(inputparams['auth_key'])):
-    #     return "Status: Request Failure, Message: Auth Failure"
+    if(not is_correct_user_token(inputparams['auth_key'])):
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":False,
+            "Status": "Request Failure",
+            "message": "Auth Failure",
+        }]
+        return JsonResponse(resp, status=200)
 
+    # User Validated
     if(inputparams['req_type']=="getLog"):
-        return get_user_log()
+        log = get_current_day_info_logs() + get_current_day_debug_logs()
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":True,
+            "Status": "Request Success",
+            "message": log,
+        }]
+        return JsonResponse(resp, status=200)
+    
     elif(inputparams['req_type']=="executeTask"):
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":True,
+            "Status": "Request Success",
+            "message": "MEssage",
+        }]
         return 
+    
 
-    return "Status: Request Failure, Message: Invalid Request"
+    elif(inputparams['req_type']=="setupParams"):
+        setup_params()
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":True,
+            "Status": "Request Success",
+            "message": "Parameter Setup",
+        }]
+        return JsonResponse(resp, status=200)
 
-
-def get_user_log():
-
-    return "LOG"
+    resp = [{
+        "req_id": inputparams['req_id'],
+        "success":False,
+        "Status": "Request Failure",
+        "message": "Invalid Request",
+    }]
+    return JsonResponse(resp, status=401)
 
 def process_trade_request(inputparams):
     # inputparams = [{

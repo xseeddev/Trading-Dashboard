@@ -3,6 +3,11 @@ import json
 import os
 from datetime import datetime
 
+"""
+TODO
+- Add more functions to get different day logs
+"""
+
 def get_log_file_path():
   """
   Creates a folder named "logs" with the current date appended and returns the path to a new JSON log file within that folder.
@@ -67,6 +72,42 @@ def get_application_log(name, level=logging.DEBUG):# To Write
   logger.addHandler(file_handler)
 
   return logger
+
+def get_current_day_info_logs():
+    """
+    Reads the current day's logs and returns only those with the log level 'INFO'.
+    """
+    log_file_path = get_log_file_path()
+
+    if not os.path.exists(log_file_path):
+        return []
+
+    info_logs = []
+    with open(log_file_path, 'r') as log_file:
+        for line in log_file:
+            log_record = json.loads(line)
+            if log_record.get('levelname') == 'INFO':
+                info_logs.append(log_record)
+
+    return info_logs
+
+def get_current_day_debug_logs():
+    """
+    Reads the current day's logs and returns only those with the log level 'INFO'.
+    """
+    log_file_path = get_log_file_path()
+
+    if not os.path.exists(log_file_path):
+        return []
+
+    debug_logs = []
+    with open(log_file_path, 'r') as log_file:
+        for line in log_file:
+            log_record = json.loads(line)
+            if log_record.get('levelname') == 'DEBUG':
+                debug_logs.append(log_record)
+
+    return debug_logs
 
 # Example usage
 # logger = setup_logger('my_app')
