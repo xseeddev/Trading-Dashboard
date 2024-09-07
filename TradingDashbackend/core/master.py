@@ -25,10 +25,10 @@ def setup_params():
         USER_OBJ_LIST.append(TradeUser(user_info))
 
     # login users
-    for user in USER_OBJ_LIST:
-        resp = user.angel_api_login()
-        # TODO
-        # Add Retry Login Func
+    # for user in USER_OBJ_LIST:
+    #     resp = user.angel_api_login()
+    #     # TODO
+    #     # Add Retry Login Func
 
 
     # declare trades df

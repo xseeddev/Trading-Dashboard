@@ -71,6 +71,16 @@ def recieve_request(inputparams):
                         SCRIPTS_MASTER_DF],
         }
         return JsonResponse(resp, status=200)
+    elif(inputparams['req_type']=="getScriptMaster"):
+        update_script_master()
+        resp = {
+            "req_id": inputparams['req_id'],
+            "success":True,
+            "Status": "Request Success",
+            "message": ["Script Master:",
+                        SCRIPTS_MASTER_DF],
+        }
+        return JsonResponse(resp, status=200)
 
 
     # No Request type Matched

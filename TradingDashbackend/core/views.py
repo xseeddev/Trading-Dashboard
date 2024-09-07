@@ -13,7 +13,6 @@ def index(request):
     context = {
         "title": "Django example",
     }
-    logg.debug("Test 1")
     return render(request, "index.html", context)
 
 @csrf_exempt 
