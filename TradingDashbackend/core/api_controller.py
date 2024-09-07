@@ -18,9 +18,6 @@ def recieve_request(inputparams):
     #     "req_type": req_type,
     #     "req": {}
     # }]
-    print("DEb-1",inputparams)
-    res = is_correct_user_token(inputparams['auth_key'])
-    print("DEb-2",res)
 
     if(not is_correct_user_token(inputparams['auth_key'])):
         resp = [{
@@ -31,7 +28,7 @@ def recieve_request(inputparams):
         }]
         return JsonResponse(resp, status=200)
 
-    # User Validated
+    # ---------------- User Validated ---------------- 
     if(inputparams['req_type']=="getLog"):
         log = get_current_day_info_logs() + get_current_day_debug_logs()
         resp = [{
