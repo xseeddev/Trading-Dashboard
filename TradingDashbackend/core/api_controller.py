@@ -79,7 +79,13 @@ def process_trade_request(inputparams):
     #     return "Status: Request Failure, Message: Auth Failure"
 
     if(inputparams['task'] not in ['NEW_TRADE', 'TRADE_EXIT', 'AUTO_TRADE_EXIT']):
-        return "Status: Request Failure, Message: Invalid Trade Request"
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":False,
+            "Status": "Request Failure",
+            "message": "Invalid Trade Request",
+        }]
+        return resp
     
     TradeTask = inputparams['task']
     TradeUserList = inputparams['user_list'] #List containing Angel_objs
@@ -88,14 +94,21 @@ def process_trade_request(inputparams):
     if(TradeTask == "NEW_TRADE"):
         for user in TradeUserList:
             params = [{
-                "angel_obj":user.angel_obj,
-                "client":user.Name,
+                "user_obj":user,
+                "Client Name":user.Name,
                 "buy_strike":TradeParams['buy_strike'],
                 "sell_strike":TradeParams['sell_strike'],
                 "option_type":TradeParams['option_type'],
                 "expiry":TradeParams['expiry_perf']
             }]
             new_trade_exec(params)
+
+            resp = [{
+                "req_id": inputparams['req_id'],
+                "success":False,
+                "Status": "Request Failure",
+                "message": "Invalid Trade Request",
+            }]
             return None
     elif(TradeTask == "TRADE_EXIT"):
         for user in TradeUserList:

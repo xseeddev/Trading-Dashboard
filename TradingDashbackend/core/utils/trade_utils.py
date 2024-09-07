@@ -161,134 +161,10 @@ def get_token_info(df, strike_price, option_type, expiry_pref, exch_seg='NFO', i
         
         return option_token, option_sym
 
-def get_ltp(angel, token, symbol, max_retries=6, retry_delay=2):
-    attempt = 0
-    while attempt < max_retries:
-        try:
-            ltp_data = angel.ltpData("NFO", symbol, token)
-            ltp = ltp_data['data']['ltp']
-            return ltp
-        except Exception as e:
-            logger.debug(f"Attempt {attempt + 1} failed: {e}")
-            traceback.logger.debug_exc()
-            attempt += 1
-            time.sleep(retry_delay)
-    
-    logger.debug("Max retries reached. LTP update failed.")
-    return None
-
-def update_nifty_ltp(angel, max_retries=2):
-    attempt = 0
-
-    while attempt < max_retries:
-        try:
-            # Fetch the LTP data for Nifty 50
-            nf_cmp = angel.ltpData("NSE", "Nifty 50", "99926000")['data']['ltp']
-            return nf_cmp
-        except Exception as e:
-            # Log the error and increment the attempt counter
-            logger.debug(f"Attempt {attempt + 1} failed: {e}")
-            traceback.logger.debug_exc()
-            attempt += 1
-    
-    # After max retries, log failure and return -1
-    logger.debug("Max retries reached. Nifty LTP update failed.")
-    return -1
-
-def fetch_api_trades():
-        try:
-            url = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
-            scripts = requests.get(url).json()
-            scripts_df = pd.DataFrame.from_dict(scripts)
-            scripts_df = scripts_df.astype({'strike': float})
-            scripts_df.to_csv(r'script_master.csv', index=False)
-            logger.info("ScriptMaster updated successfully")
-        except Exception as e:
-            logger.info("ScriptMaster updation unsuccessfull")
-
 
 # <------------------------- Trade related functions -------------------------------------->
 
-def available_margin(angel):
-    try:
-        margin = angel.rmsLimit()['data']
-        # Extracting and converting margin values to integers
-        net_margin = int(float(margin.get('net', 0)))
-        return net_margin
-    except KeyError as e:
-        raise ValueError(f"Key error: {e} - Check the structure of the API response.")
-    except Exception as e:
-        raise RuntimeError(f"An error occurred while fetching the available margin: {e}")
-
-def req_margin(angel, buy_leg_token, sell_leg_token):
-    data = {
-        "positions": [
-            {
-                "exchange": "NFO",
-                "qty": 25,
-                "price": 0,
-                "productType": "CARRYFORWARD",
-                "token": buy_leg_token,
-                "tradeType": "BUY"
-            },
-            {
-                "exchange": "NFO",
-                "qty": 25,
-                "price": 0,
-                "productType": "CARRYFORWARD",
-                "token": sell_leg_token,
-                "tradeType": "SELL"
-            }
-        ]
-    }
-
-    try:
-        response = angel.getMarginApi(data)
-        margin_req = float(response['data'].get('totalMarginRequired', 0))
-        new_margin_req = int(margin_req * 1.20)  # Adding a 20% buffer
-        return new_margin_req
-    except KeyError as e:
-        raise ValueError(f"Key error: {e} - Check the structure of the API response.")
-    except Exception as e:
-        raise RuntimeError(f"An error occurred while fetching the required margin: {e}")
-
-def trade_req(angel, client, buy_leg_strike, sell_leg_strike, option_type, expiry):
-    try:
-        script_list = pd.read_csv(r'script_master.csv', low_memory=False)
-        
-        buy_leg_token, buy_leg_sym = get_token_info(
-            df=script_list, strike_price=buy_leg_strike, option_type=option_type, expiry_pref=expiry)
-        sell_leg_token, sell_leg_sym = get_token_info(
-            df=script_list, strike_price=sell_leg_strike, option_type=option_type, expiry_pref=expiry)
-
-        avail_margin = available_margin(angel)
-        margin_per_lot = req_margin(angel, buy_leg_token, sell_leg_token)
-
-        lots = max(int(avail_margin / margin_per_lot), 0)
-        qty = lots * 25
-        
-        return buy_leg_token, buy_leg_sym, sell_leg_token, sell_leg_sym, qty
-
-    except Exception as e:
-        logger.info(f"{client}: trade_req failed due to {e}")
-        return None, None, None, None, 0
-    
-def update_trade_dataframe(client=None, symbol=None, token=None, buy_date=None, buy_price=None, qty=None, sell_price=None, sell_date=None, leg_status=None, leg_pnl=None):
-    try:
-        columns = ['client', 'symbol', 'token', 'buy_date', 'buy_price',
-                   'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl']
-        new_row = pd.Series([client, symbol, token, buy_date, buy_price,
-                            qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
-        
-        df = pd.read_csv('trades.csv')
-        df = df.append(new_row, ignore_index=True)
-        df.to_csv('trades.csv', index=False)
-
-    except Exception as e:
-        # Log error if something goes wrong
-        logger.debug(f"trade_csv updation failed at {datetime.now().strftime('%H:%M:%S')}: {e}")
-        traceback.logger.debug_exc()
-    
+ 
 def delete_closed_trades(file_path='trades.csv'):
     try:        
         trades = pd.read_csv(file_path)
@@ -308,68 +184,6 @@ def delete_closed_trades(file_path='trades.csv'):
         traceback.logger.debug_exc()
 
 
-# <------------------------- Position functions -------------------------------------->
-
-def update_holding(angel):
-    try:
-        holding = angel.holding()
-        if not holding['data']:
-            logger.debug("No holdings found.")
-            return
-        
-        holding_df = pd.DataFrame(holding['data'])
-        columns_to_keep = ['tradingsymbol', 'quantity', 'averageprice', 'profitandloss', 'pnlpercentage']
-        holding_df = holding_df[columns_to_keep]
-        
-        message = "Holdings:\n"
-        for _, row in holding_df.iterrows():
-            message += f"Symbol: {row['tradingsymbol']}\n"
-            message += f"Quantity: {row['quantity']}\n"
-            message += f"Avg Price: {row['averageprice']}\n"
-            message += f"P&L: {row['profitandloss']}\n"
-            message += f"P&L %: {row['pnlpercentage']}\n\n"
-        logger.debug(message)
-    
-    except Exception as e:
-        logger.debug(f"Failed to update holdings: {e}")
-        traceback.logger.debug_exc()
-
-def update_positions(angel):
-    try:
-        time.sleep(2)
-        position = angel.position()
-        if not position['data']:
-            logger.debug("No positions found.")
-            return
-        
-        position_df = pd.DataFrame(position['data'])
-        columns_to_keep = ['tradingsymbol', 'netqty', 'totalbuyavgprice', 'totalsellavgprice', 'pnl']
-        position_df = position_df[columns_to_keep]
-        
-        message = "Positions:\n"
-        for _, row in position_df.iterrows():
-            message += f"Symbol: {row['tradingsymbol']}\n"
-            message += f"Quantity: {row['netqty']}\n"
-            message += f"Buy Price: {row['totalbuyavgprice']}\n"
-            message += f"Sell Price: {row['totalsellavgprice']}\n"
-            message += f"P&L: {row['pnl']}\n\n"
-        logger.debug(message)
-    
-    except Exception as e:
-        logger.debug(f"Failed to update positions: {e}")
-        traceback.logger.debug_exc()
-
-def update_nf_ltp(angel, i=[0]):
-	try:
-		nf_cmp = angel.ltpData("NSE", "Nifty 50", "99926000")['data']['ltp']
-		i[0] = 0  # Reset i to 0
-		return nf_cmp
-	except:
-		i[0] += 1
-		if i[0] > 2:
-			logger.debug("nf_ltp_update failed")
-			i[0] = 0  # Reset i to 0
-		return -1
 
 # <------------------------- Math Util functions -------------------------------------->
 
@@ -403,9 +217,8 @@ def update_script_master():
     try:
         url = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
         scripts = requests.get(url).json()
-        scripts_df = pd.DataFrame.from_dict(scripts)
-        scripts_df = scripts_df.astype({'strike': float})
-        SCRIPTS_MASTER_DF = scripts_df
+        SCRIPTS_MASTER_DF = pd.DataFrame.from_dict(scripts)
+        SCRIPTS_MASTER_DF = SCRIPTS_MASTER_DF.astype({'strike': float})
         # scripts_df.to_csv(r'script_master.csv', index=False)
         logger.info("ScriptMaster updated successfully")
     except:
@@ -527,88 +340,31 @@ def getTokenInfo(df, strike_price, option_type, expiry_pref, exch_seg='NFO', ins
 	return option_token, option_sym
 
 
-def available_margin(angel):
-	margin = angel.rmsLimit()
-	margin = margin['data']
-	net_margin = int(float(margin['net']))
-	availablecash = int(float(margin['availablecash']))
-	availableintradaypayin = int(float(margin['availableintradaypayin']))
-	availablelimitmargin = int(float(margin['availablelimitmargin']))
-	collateral = int(float(margin['collateral']))
-	m2munrealized = int(float(margin['m2munrealized']))
-	m2mrealized = int(float(margin['m2mrealized']))
-	utiliseddebits = int(float(margin['utiliseddebits']))
-	utilisedpayout = int(float(margin['utilisedpayout']))
-	return net_margin
-
-
-def req_margin(angel, buy_leg_token, sell_leg_token):
-
-	# Sample request data
-	data = {
-		"positions": [
-			{
-				"exchange": "NFO",
-				"qty": 25,
-				"price": 0,
-				"productType": "CARRYFORWARD",
-				"token": buy_leg_token,
-				"tradeType": "BUY"
-			},
-			{
-				"exchange": "NFO",
-				"qty": 25,
-				"price": 0,
-				"productType": "CARRYFORWARD",
-				"token": sell_leg_token,
-				"tradeType": "SELL"
-			}
-		]
-	}
-	response = angel.getMarginApi(data)
-	margin_req = int(response['data']['totalMarginRequired'])
-	new_margin_req = int(margin_req+(margin_req * 0.20))
-	return new_margin_req
-
-def trade_req(angel, client, buy_leg_strike, sell_leg_strike, option_type, expiry):
+def trade_req(user,buy_leg_strike, sell_leg_strike, option_type, expiry):
     try:
-        script_list = SCRIPTS_MASTER_DF
-        buy_leg_token, buy_leg_sym = getTokenInfo(df=script_list, strike_price=buy_leg_strike, option_type=option_type, expiry_pref=expiry)
-        sell_leg_token, sell_leg_sym = getTokenInfo(df=script_list, strike_price=sell_leg_strike, option_type=option_type, expiry_pref=expiry)
+        buy_leg_token, buy_leg_sym = getTokenInfo(df=SCRIPTS_MASTER_DF, strike_price=buy_leg_strike, option_type=option_type, expiry_pref=expiry)
+        sell_leg_token, sell_leg_sym = getTokenInfo(df=SCRIPTS_MASTER_DF, strike_price=sell_leg_strike, option_type=option_type, expiry_pref=expiry)
 
-        avail_margin = available_margin(angel)
-        marigin_per_lot = req_margin(angel, buy_leg_token, sell_leg_token)
+
+        avail_margin = user.available_margin()
+        marigin_per_lot = user.req_margin(buy_leg_token, sell_leg_token)
+
         lots = int(avail_margin/marigin_per_lot)
         qty = int(lots*25)
         return buy_leg_token, buy_leg_sym, sell_leg_token, sell_leg_sym, qty
     except:
-        logger.info(client + ": trade_req failed")
-        traceback.print_exc()
-
-def call_ltp(angel_obj, symbol, token):
-	i = 0
-	while i < 6:
-		try:
-			ltp = angel_obj.ltpData("NFO", symbol, token)['data']['ltp']
-			return ltp
-		except:
-			i =+ 1
-			sleep(2)
-			traceback.print_exc()
-			print("option ltp update failed, retrying...")
-	print("max retries reached ltp update failed")
-	return None
+        logger.info(user.Name + ": trade_req failed")
+        logger.debug(user.Name + ": trade_req failed" + traceback.print_exc())
 
 
-def update_trade_dataframe(client=None, symbol=None, token=None, buy_date=None, buy_price=None, qty=None, sell_price=None, sell_date=None, leg_status=None, leg_pnl=None):
+def update_trade_dataframe(user ,symbol=None, token=None, buy_date=None, buy_price=None, qty=None, sell_price=None, sell_date=None, leg_status=None, leg_pnl=None):
     try:
         columns = ['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl']
-        new_row = pd.Series([client, symbol, token, buy_date, buy_price, qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
-        df = TRADES_DF
-        df = df._append(new_row, ignore_index=True)
-        TRADES_DF = df
+        new_row = pd.Series([user.Name, symbol, token, buy_date, buy_price, qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
+        df = TRADES_DF._append(new_row, ignore_index=True)
+        logger.info(user.Name + ": Updated Trades DF")
     except:
-        logger.info(client + ": trade_csv updation failed")
+        logger.info(user.Name + ": trade_csv updation failed")
         logger.debug("\n" + "trade_csv updation failed @ " + datetime.now().strftime("%H:%M:%S") + traceback.print_exc())
 
 def delete_closed_trades():

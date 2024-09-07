@@ -3,6 +3,7 @@ import traceback
 from TradingDashbackend.core.utils import trade_utils
 from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.master import TRADES_DF
+from TradingDashbackend.core.utils import trade_user
 
 logger = setup_logger("Core:Utils:Order Exec")
 # Pending Fix
@@ -314,7 +315,7 @@ def sell_order(angel, client, sell_qty, sell_token, sell_symbol):
 def new_trade_exec(inputparams):
 
     # inputparams = [{
-    #     "angel_obj":angel,
+    #     "user_obj":user_obj,
     #     "client":client,
     #     "buy_strike":buy_strike,
     #     "sell_strike":sell_strike,
@@ -322,27 +323,27 @@ def new_trade_exec(inputparams):
     #     "expiry":expiry
     # }]
     
-    angel = inputparams["angel_obj"]
-    client = inputparams["client"]
+    user_obj = inputparams["user_obj"]
+    name = inputparams["Client Name"]
     buy_strike = inputparams["buy_strike"]
     sell_strike = inputparams["sell_strike"]
     option_type = inputparams["option_type"]
     expiry = inputparams["expiry"]
 
     try:
-        buy_token, buy_symbol, sell_token, sell_symbol, qty = trade_utils.trade_req(angel, client, buy_strike, sell_strike, option_type, expiry)
+        buy_token, buy_symbol, sell_token, sell_symbol, qty = trade_utils.trade_req(user_obj, buy_strike, sell_strike, option_type, expiry)
         if qty>200:
-            buy_sym, buy_qty, buy_price, buy_date = buy_order(angel, client, qty, buy_token, buy_symbol)
+            buy_sym, buy_qty, buy_price, buy_date = buy_order(user_obj.angel_obj, name, qty, buy_token, buy_symbol)
             if buy_sym==buy_symbol and buy_qty==qty:
-                sell_sym, sell_qty, sell_price, sell_date = sell_order(angel, client, qty, sell_token, sell_symbol)
+                sell_sym, sell_qty, sell_price, sell_date = sell_order(user_obj.angel_obj, name, qty, sell_token, sell_symbol)
                 if sell_sym==sell_symbol and abs(sell_qty)==qty:
-                    trade_utils.update_trade_dataframe(client=client, symbol=sell_symbol, qty=-(sell_qty), sell_price=sell_price, token=sell_token, sell_date=sell_date)
-                    trade_utils.update_trade_dataframe(client=client, symbol=buy_symbol, qty=buy_qty, buy_price=buy_price, token=buy_token, buy_date=buy_date)
-                    logger.info(client + ": complete order exe successfull")
+                    trade_utils.update_trade_dataframe(user_obj, symbol=sell_symbol, qty=-(sell_qty), sell_price=sell_price, token=sell_token, sell_date=sell_date)
+                    trade_utils.update_trade_dataframe(user_obj, symbol=buy_symbol, qty=buy_qty, buy_price=buy_price, token=buy_token, buy_date=buy_date)
+                    logger.info(user_obj.Name + ": complete order exe successfull")
         else:
-           logger.info(client + ": min. margin req. not fullfilled")
+           logger.info(user_obj.Name + ": min. margin req. not fullfilled")
     except:
-        logger.info(client + ": NEW TRADE exe failed")
+        logger.info(user_obj.Name + ": NEW TRADE exe failed")
         logger.debug("order exe failed" + traceback.print_exc())
     
 def exit_trade_exec(inputparams):
