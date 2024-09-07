@@ -23,12 +23,13 @@ def setup_params():
         }
         logger.info("Parameters are setup")
         USER_OBJ_LIST.append(TradeUser(user_info))
-    # print(USER_OBJ_LIST)
-    # logger.info("Final Users",USER_OBJ_LIST)
 
     # login users
     for user in USER_OBJ_LIST:
-        user.login()
+        resp = user.angel_api_login()
+        # TODO
+        # Add Retry Login Func
+
 
     # declare trades df
     TRADES_DF = pd.DataFrame(columns=['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl'])
