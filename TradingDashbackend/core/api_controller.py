@@ -22,64 +22,64 @@ def recieve_request(inputparams):
     # }]
 
     if(not is_correct_user_token(inputparams['auth_key'])):
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":False,
             "Status": "Request Failure",
             "message": "Auth Failure",
-        }]
+        }
         return JsonResponse(resp, status=200)
 
     # ---------------- User Validated ---------------- 
     if(inputparams['req_type']=="getLog"):
         log = get_current_day_info_logs() + get_current_day_debug_logs()
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":True,
             "Status": "Request Success",
             "message": log,
-        }]
+        }
         return JsonResponse(resp, status=200)
     
     elif(inputparams['req_type']=="executeTask"):
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":True,
             "Status": "Request Success",
             "message": "MEssage",
-        }]
+        }
         return 
     
 
     elif(inputparams['req_type']=="setupParams"):
         setup_params()
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":True,
             "Status": "Request Success",
             "message": "Parameter Setup",
-        }]
+        }
         return JsonResponse(resp, status=200)
     
     elif(inputparams['req_type']=="updateScriptMaster"):
         update_script_master()
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":True,
             "Status": "Request Success",
             "message": ["Script Master Updated",
                         SCRIPTS_MASTER_DF],
-        }]
+        }
         return JsonResponse(resp, status=200)
 
 
     # No Request type Matched
-    resp = [{
+    resp = {
         "req_id": inputparams['req_id'],
         "success":False,
         "Status": "Request Failure",
         "message": "Invalid Request",
-    }]
+    }
     return JsonResponse(resp, status=401)
 
 def process_trade_request(inputparams):
@@ -94,12 +94,12 @@ def process_trade_request(inputparams):
     #     return "Status: Request Failure, Message: Auth Failure"
 
     if(inputparams['task'] not in ['NEW_TRADE', 'TRADE_EXIT', 'AUTO_TRADE_EXIT']):
-        resp = [{
+        resp = {
             "req_id": inputparams['req_id'],
             "success":False,
             "Status": "Request Failure",
             "message": "Invalid Trade Request",
-        }]
+        }
         return resp
     
     TradeTask = inputparams['task']
@@ -118,12 +118,12 @@ def process_trade_request(inputparams):
             }]
             new_trade_exec(params)
 
-            resp = [{
+            resp = {
                 "req_id": inputparams['req_id'],
                 "success":False,
                 "Status": "Request Failure",
                 "message": "Invalid Trade Request",
-            }]
+            }
             return None
     elif(TradeTask == "TRADE_EXIT"):
         for user in TradeUserList:

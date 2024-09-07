@@ -2,7 +2,6 @@ import pandas as pd
 import json
 from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.utils.trade_user import TradeUser
-from TradingDashbackend.core.utils.trade_utils import update_script_master
 
 logger = setup_logger("Core Master")
 TRADES_DF = []
@@ -36,4 +35,4 @@ def setup_params():
     TRADES_DF = pd.DataFrame(columns=['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl'])
     # fetch scriptmaster
     SCRIPTS_MASTER_DF = pd.DataFrame()
-    update_script_master()
+    
