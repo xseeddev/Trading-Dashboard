@@ -8,6 +8,8 @@ from TradingDashbackend.core.logger import get_current_day_info_logs
 from TradingDashbackend.core.logger import get_current_day_debug_logs
 from django.http import JsonResponse
 from TradingDashbackend.core.master import setup_params
+from TradingDashbackend.core.utils.trade_utils import update_script_master
+from TradingDashbackend.core.master import SCRIPTS_MASTER_DF
 
 logger = setup_logger("API Req/Res Controller")
 
@@ -58,7 +60,20 @@ def recieve_request(inputparams):
             "message": "Parameter Setup",
         }]
         return JsonResponse(resp, status=200)
+    
+    elif(inputparams['req_type']=="updateScriptMaster"):
+        update_script_master()
+        resp = [{
+            "req_id": inputparams['req_id'],
+            "success":True,
+            "Status": "Request Success",
+            "message": ["Script Master Updated",
+                        SCRIPTS_MASTER_DF],
+        }]
+        return JsonResponse(resp, status=200)
 
+
+    # No Request type Matched
     resp = [{
         "req_id": inputparams['req_id'],
         "success":False,
