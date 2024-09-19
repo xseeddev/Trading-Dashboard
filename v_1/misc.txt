@@ -1,2 +1,6 @@
 Improvements:
 1. Pass json and deconstruct instead of individual arguments
+
+
+#TODO: Fix logging functions throughout the project
+#TODO: Fix all import locations to be relative to main.py
