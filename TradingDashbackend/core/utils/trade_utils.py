@@ -19,6 +19,7 @@ import math
 from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.master import SCRIPTS_MASTER_DF
 from TradingDashbackend.core.master import TRADES_DF
+from TradingDashbackend.core.utils import trade_user
 
 
 # <------------------------- Date, day, time checking -------------------------------------->
@@ -210,3 +211,87 @@ def roundToNSEPrice(price):
 	x = round(price, 2) * 20
 	y = math.ceil(x)
 	return y / 20
+def adjust_ltp(order_type: str, ltp: float) -> float:
+    if order_type == 'buy':
+        return ltp + 0.5
+    elif order_type == 'sell' and ltp >= 1:
+        return ltp - 0.5
+    return ltp
+
+# <------------------------- Trade Helpers functions -------------------------------------->
+
+def update_trade_dataframe(
+    angel: trade_user,
+    symbol: str,
+    token: str,
+    buy_date: str,
+    buy_price: float,
+    qty: int,
+    sell_price: float,
+    sell_date: str,
+    leg_status: str,
+    leg_pnl: float
+) -> None:
+    """
+    Updates the trade dataframe by appending a new trade entry.
+
+    Args:
+    - client (str): The client identifier.
+    - symbol (str): The trading symbol.
+    - token (str): The token associated with the trade.
+    - buy_date (str): The date the asset was bought.
+    - buy_price (float): The price at which the asset was bought.
+    - qty (int): The quantity of the asset traded.
+    - sell_price (float): The price at which the asset was sold.
+    - sell_date (str): The date the asset was sold.
+    - leg_status (str): The status of the trade leg.
+    - leg_pnl (float): The profit and loss for the trade leg.
+
+    Returns:
+    - None
+    """
+    try:
+        client = angel.Name
+        columns = ['client', 'symbol', 'token', 'buy_date', 'buy_price', 'qty', 'sell_price', 'sell_date', 'leg_status', 'leg_pnl']
+        new_row = pd.Series([client, symbol, token, buy_date, buy_price, qty, sell_price, sell_date, leg_status, leg_pnl], index=columns)
+
+        df = SCRIPTS_MASTER_DF
+        df = df.append(new_row, ignore_index=True)
+        # df.to_csv('trades.csv', index=False)
+
+        logger.info("Trade data updated successfully for client: %s", client)
+
+    except Exception as e:
+        logger.info("Failed to update trade CSV for client %s: %s", client, str(e))
+        logger.debug(f"\nTrade CSV update failed @ {datetime.now().strftime('%H:%M:%S')}")
+
+
+def update_trade_status(dataframe, index, result):
+    """Update the trade status in the DataFrame based on the result."""
+    try:
+        quantity = result[1]
+        price = result[2]
+        date = result[3]
+        order_type = result[4]
+
+        if order_type == 'buy':
+            dataframe.at[index, 'buy_price'] = price
+            dataframe.at[index, 'buy_date'] = date
+            dataframe.at[index, 'quantity'] = abs(quantity)
+            dataframe.at[index, 'trade_status'] = 'CLOSED'
+            dataframe.at[index, 'trade_pnl'] = (dataframe.at[index, 'sell_price'] - price) * abs(quantity)
+
+        elif order_type == 'sell':
+            dataframe.at[index, 'sell_price'] = price
+            dataframe.at[index, 'sell_date'] = date
+            dataframe.at[index, 'quantity'] = abs(quantity)
+            dataframe.at[index, 'trade_status'] = 'CLOSED'
+            dataframe.at[index, 'trade_pnl'] = (price - dataframe.at[index, 'buy_price']) * abs(quantity)
+
+        return dataframe
+
+    except Exception as e:
+        logger.info(f"Error updating trade status: {str(e)}")
+        logger.debug(f"Error updating trade status: {str(e)}")
+        # traceback.print_exc()
+        return dataframe

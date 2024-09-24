@@ -1,423 +1,245 @@
+# This needs refactoring
+
 from time import sleep
 import traceback
 from TradingDashbackend.core.utils import trade_utils
 from TradingDashbackend.core.logger import setup_logger
 from TradingDashbackend.core.master import TRADES_DF
 from TradingDashbackend.core.utils import trade_user
+from TradingDashbackend.core.utils.trade_utils import roundToNSEPrice, adjust_ltp
+
+
+
+import traceback
+import pandas as pd
+
+# Project imports
+from utils.token_info import get_ltp
+from utils.math_functions import round_prices
+from utils.orders.modify import handle_order_status, modify_order
+from utils.trading.trades import prepare_trade_order, update_trade_dataframe, update_trade_status
 
 logger = setup_logger("Core:Utils:Order Exec")
-# Pending Fix
-
-def place_order_sell(angel_obj, inputparams):
-
-	# inputparams = [{
-    #   "client":client,
-	# 	"symbol":sell_symbol,
-	# 	"token":sell_token,
-	# 	"qty":sell_qty,
-	# 	"price":sell_ltp
-    # }]
-
-	symbol = inputparams["symbol"]
-	token = inputparams["token"]
-	qty = inputparams["qty"]
-	price = inputparams["price"]
-	client = inputparams['client']
-
-	orderparams= {
-				"variety": "NORMAL",
-				"tradingsymbol": symbol,
-				"symboltoken": token,
-		        "exchange": "NFO",
-		        "transactiontype": "SELL",
-		        "quantity": qty,
-		        "ordertype": "LIMIT",
-		        "producttype": "CARRYFORWARD",
-		        "price": trade_utils.roundToNSEPrice(price),
-		        "duration": "DAY"
-    			}
-	try:
-		OrderId = angel_obj.placeOrder(orderparams)
-		logger.info(client+":Placed Order, id:"+OrderId)
-	except:
-		logger.info("Error in Placing Order sell, Client:"+client)
-
-	return OrderId
-
-def place_order_buy(angel_obj, inputparams):
-	# inputparams = [{
-    #   "client":client,
-	# 	"symbol":sell_symbol,
-	# 	"token":sell_token,
-	# 	"qty":sell_qty,
-	# 	"price":sell_ltp
-    # }]
-
-	symbol = inputparams["symbol"]
-	token = inputparams["token"]
-	qty = inputparams["qty"]
-	price = inputparams["price"]
-	client = inputparams['client']
-
-	orderparams= {
-				"variety": "NORMAL",
-				"tradingsymbol": symbol,
-				"symboltoken": token,
-		        "exchange": "NFO",
-		        "transactiontype": "BUY",
-		        "quantity": qty,
-		        "ordertype": "LIMIT",
-		        "producttype": "CARRYFORWARD",
-		        "price": trade_utils.roundToNSEPrice(price),
-		        "duration": "DAY"
-    			}
-
-	try:
-		OrderId = angel_obj.placeOrder(orderparams)
-		logger.info(client+":Placed Order, id:"+OrderId)
-	except:
-		logger.info("Error in Placing Order Buy, Client:"+client)
-	return OrderId
-
-def modify_order(angel_obj,inputparams):
-	# inputparams = [{
-	#   "orderid":order_id
-    #   "client":client,
-	# 	"symbol":sell_symbol,
-	# 	"token":sell_token,
-	# 	"qty":sell_qty,
-	# 	"price":sell_ltp
-    # }]
-
-	orderid = inputparams['orderid']
-	symbol = inputparams["symbol"]
-	token = inputparams["token"]
-	qty = inputparams["qty"]
-	price = inputparams["price"]
-	client = inputparams['client']
 
 
+# <--------------------------------- Functions ------------------------------------->
 
-	modifyparams = {
-			        "variety": "NORMAL",
-			        "orderid": orderid,
-			        "ordertype": "LIMIT",
-			        "producttype": "CARRYFORWARD",
-			        "duration": "DAY",
-			        "price": trade_utils.roundToNSEPrice(price),
-			        "quantity": qty,
-			        "tradingsymbol": symbol,
-			        "symboltoken": token,
-			        "exchange": "NFO"
-			        }
-	try:
-		OrderId = angel_obj.placeOrder(modifyparams)
-		logger.info(client+":Modified Order, id:"+OrderId)
-	except:
-		logger.info("Error in Modifying Order, Client:"+client)
-	return OrderId
+def base_order_parameters(transaction_type: str, price: float, symbol: str=None, token: int=None, quantity: int=None, order_id: int=None):
+    params = {
+        "variety": "NORMAL",
+        "exchange": "NFO",
+        "ordertype": "LIMIT",
+        "producttype": "CARRYFORWARD",
+        "duration": "DAY",
+        "transactiontype": transaction_type,
+        "price": roundToNSEPrice(price),
+        "tradingsymbol": symbol,
+        "symboltoken": token,
+        "quantity": quantity,
+    }
+    if order_id:
+        params["orderid"] = order_id
+    return params
 
-def cancel_order(angel_obj, inputparams):
-	
-    # inputparams = [{
-	#   "orderid":order_id
-    #   "client":client,
-    # }]
+def place_sell_order(angel_obj: trade_user, symbol: str, token: int, quantity: int, price: float):
+    order_params = base_order_parameters(
+        transaction_type="SELL",
+        price=roundToNSEPrice(price),
+        symbol=symbol,
+        token=token,
+        quantity=quantity
+    )
+    order_id = angel_obj.placeOrder(order_params)
+    return order_id
 
-    orderid = inputparams['orderid']
-    client = inputparams['client']
+def place_buy_order(angel_obj: trade_user, symbol: str, token: int, quantity: int, price: float):
+    order_params = base_order_parameters(
+        transaction_type="BUY",
+        price=roundToNSEPrice(price),
+        symbol=symbol,
+        token=token,
+        quantity=quantity
+    )
+    order_id = angel_obj.placeOrder(order_params)
+    return order_id
 
+def create_buy_order(angel_obj: trade_user, buy_token: int, buy_symbol: str, buy_quantity: int):
     try:
-        OrderId = angel_obj.cancel_order(variety=angel_obj.VARIETY_REGULAR, order_id=orderid)
-        logger.info("Cancelled Order, id:"+OrderId)
-    except:
-        logger.info("Error in Cancelling Order,Id:",OrderId)
-
-    return OrderId
-
-def modify_entry_order(angel_obj, inputparams):
-    
-    # inputparams = [{
-	#   "orderid":order_id
-    #   "client":client,
-	# 	"symbol":sell_symbol,
-	# 	"token":sell_token,
-	# 	"qty":sell_qty,
-	# 	"price":sell_ltp
-    # }]
-	
-    orderid = inputparams['orderid']
-    qty = inputparams["qty"]
-    price = inputparams["price"]
-    client = inputparams['client']
-
-    try:
-        OrderId = angel_obj.modify_order(order_id=orderid,
-                                    quantity=qty,
-                                    variety=angel_obj.VARIETY_REGULAR,
-                                    order_type=angel_obj.ORDER_TYPE_LIMIT,
-                                    price=trade_utils.roundToNSEPrice(price))
-        logger.info("Modified Order, id:"+OrderId)
-    except:
-        logger.info("Error in Modifying Order,Id:",OrderId)
-
-    return OrderId
-
-# To FIx |
-#        v 
-
-def buy_order(angel, client, buy_qty, buy_token, buy_symbol):
-    
-    try:
-        buy_ltp = trade_utils.call_ltp(angel, buy_symbol, buy_token)
-
-        inputparams = [{
-            "client":client,
-            "symbol":buy_symbol,
-            "token":buy_token,
-            "qty":buy_qty,
-            "price":buy_ltp+0.5
-        }]
-
-        buy_Orderid = place_order_buy(angel, inputparams)
-        i=0
-        while True:
-            try:
-                sleep(1)
-                orderbook = angel.orderBook()
-                buy_rec = orderbook['data']
-                for buy_row in buy_rec:
-                    if i < 3:
-                        if (buy_row['orderid'] == buy_Orderid) and (buy_row['status'] == 'open'):
-                            try:
-                                buy_ltp = angel.ltpData("NFO", buy_symbol, buy_token)['data']['ltp']
-                                m_qty = int(buy_row['unfilledshares'])
-
-                                inputparams = [{
-                                    "orderid":buy_Orderid,
-                                    "client":client,
-                                    "symbol":buy_symbol,
-                                    "token":buy_token,
-                                    "qty":m_qty,
-                                    "price":buy_ltp+0.5
-                                }]
-
-                                buy_modify_Orderid = modify_order(angel, inputparams)
-                                i=i+1
-                                logger.info(client + ": buy_order modified as price skipped")
-                            except:
-                                i=i+1
-                                traceback.print_exc()
-                                logger.info(client + ": buy_modify_order failed")
-
-                        elif (buy_row['orderid'] == buy_Orderid) and (buy_row['status'] == 'complete'):
-                            try:
-                                buy_symbol = buy_row['tradingsymbol']
-                                buy_qty = int(buy_row['quantity'])
-                                buy_price = buy_row['averageprice']
-                                buy_date = buy_row['updatetime']
-                                logger.info(client + ": buy_leg_order placed successfully")
-                                return buy_symbol, buy_qty, buy_price, buy_date
-                            except:
-                                logger.info(client + ": buy_order executed, but orderbook calling failed")
-                                logger.debug("buy_order executed, but orderbook calling failed"+traceback.print_exc())
-                                
-                                return -1, -1, -1, -1
-
-                        elif (buy_row['orderid'] == buy_Orderid) and (buy_row['status'] == 'rejected'):
-                            logger.info(client + ": buy_order_placement_rejected")
-                            return -1, -1, -1, -1
-
-                        elif (buy_row['orderid'] == buy_Orderid) and (buy_row['status'] == 'cancelled'):
-                            logger.info(client + ": buy_order_placement_cancelled")
-                            return -1, -1, -1, -1
-
-                    else:
-                        logger.info(client + ": buy_order_placement_failed")
-                        return -1, -1, -1, -1
-            except:
-                logger.info(client + ": orderbook calling for buy leg failed, retrying...")
-                logger.debug("orderbook calling 4r buy leg failed, retrying..."+traceback.print_exc()) 
-    except:
-        logger.info(client + ": buy_order exe failed")
-        logger.debug("buy_order exe failed" + traceback.print_exc())
-
-def sell_order(angel, client, sell_qty, sell_token, sell_symbol):
-    
-
-    try:
-        sell_ltp = trade_utils.call_ltp(angel, sell_symbol, sell_token)
-        if sell_ltp >= 1: sell_ltp = sell_ltp-0.5
-
-        inputparams = [{
-            "client":client,
-            "symbol":sell_symbol,
-            "token":sell_token,
-            "qty":sell_qty,
-            "price":sell_ltp
-        }]
-        
-        sell_Orderid = place_order_sell(angel, inputparams)
-        i=0
-        while True:
-            try:
-                sleep(1)
-                orderbook = angel.orderBook()
-                sell_rec = orderbook['data']
-                for sell_row in sell_rec:
-                    if i < 3:
-                        if (sell_row['orderid'] == sell_Orderid) and (sell_row['status'] == 'open'):
-                            try:
-                                sell_ltp = angel.ltpData("NFO", sell_symbol, sell_token)['data']['ltp']
-                                if sell_ltp >= 1: sell_ltp = sell_ltp-0.5
-                                m_qty = int(sell_row['unfilledshares'])
-                                sell_modify_Orderid = modify_order(angel, sell_Orderid, sell_ltp, sell_symbol, sell_token, m_qty)
-                                i=i+1
-                                logger.info(client + ": sell_order modified as price skipped")
-                            except:
-                                i=i+1
-                               
-                                logger.info(client + ": sell_modify_order failed")
-
-                        elif (sell_row['orderid'] == sell_Orderid) and (sell_row['status'] == 'complete'):
-                            try:
-                                sell_symbol = sell_row['tradingsymbol']
-                                sell_qty = int(sell_row['quantity'])
-                                sell_price = sell_row['averageprice']
-                                sell_date = sell_row['updatetime']
-                                logger.info(client + ": sell_leg_order placed successfully")
-                                return sell_symbol, sell_qty, sell_price, sell_date
-                            except:
-                                logger.info(client + ": sell_order executed, but orderbook calling failed")
-                                logger.debug("sell_order executed, but orderbook calling failed" + traceback.print_exc())
-                                
-                                return -1, -1, -1, -1
-
-                        elif (sell_row['orderid'] == sell_Orderid) and (sell_row['status'] == 'rejected'):
-                            logger.info(client + ": sell_order_placement_rejected")
-                            return -1, -1, -1, -1
-
-                        elif (sell_row['orderid'] == sell_Orderid) and (sell_row['status'] == 'cancelled'):
-                            logger.info(client + ": sell_order_placement_cancelled")
-                            return -1, -1, -1, -1
-                    else:
-                        logger.info(client + ": sell_order_placement_failed")
-                        logger.debug("sell_order_placement_failed")
-                        return -1, -1, -1, -1
-            except:
-                logger.info(client + ": orderbook calling 4r sell leg failed, retrying...")
-                logger.debug("orderbook calling 4r sell leg failed, retrying..." + traceback.print_exc())  
-    except:
-        logger.info(client + ": sell_order exe failed")
-        logger.debug("sell_order exe failed" + traceback.print_exc())
-        
-
-def new_trade_exec(inputparams):
-
-    # inputparams = [{
-    #     "user_obj":user_obj,
-    #     "client":client,
-    #     "buy_strike":buy_strike,
-    #     "sell_strike":sell_strike,
-    #     "option_type":option_type,
-    #     "expiry":expiry
-    # }]
-    
-    user_obj = inputparams["user_obj"]
-    name = inputparams["Client Name"]
-    buy_strike = inputparams["buy_strike"]
-    sell_strike = inputparams["sell_strike"]
-    option_type = inputparams["option_type"]
-    expiry = inputparams["expiry"]
-
-    try:
-        buy_token, buy_symbol, sell_token, sell_symbol, qty = trade_utils.trade_req(user_obj, buy_strike, sell_strike, option_type, expiry)
-        if qty>200:
-            buy_sym, buy_qty, buy_price, buy_date = buy_order(user_obj.angel_obj, name, qty, buy_token, buy_symbol)
-            if buy_sym==buy_symbol and buy_qty==qty:
-                sell_sym, sell_qty, sell_price, sell_date = sell_order(user_obj.angel_obj, name, qty, sell_token, sell_symbol)
-                if sell_sym==sell_symbol and abs(sell_qty)==qty:
-                    trade_utils.update_trade_dataframe(user_obj, symbol=sell_symbol, qty=-(sell_qty), sell_price=sell_price, token=sell_token, sell_date=sell_date)
-                    trade_utils.update_trade_dataframe(user_obj, symbol=buy_symbol, qty=buy_qty, buy_price=buy_price, token=buy_token, buy_date=buy_date)
-                    logger.info(user_obj.Name + ": complete order exe successfull")
-        else:
-           logger.info(user_obj.Name + ": min. margin req. not fullfilled")
-    except:
-        logger.info(user_obj.Name + ": NEW TRADE exe failed")
-        logger.debug("order exe failed" + traceback.print_exc())
-    
-def exit_trade_exec(inputparams):
-    # inputparams = [{
-    #     "angel_obj":angel,
-    #     "client":client,
-    # }]
-    
-    angel = inputparams["angel_obj"]
-    client = inputparams["client"]
-
-    try:
-        df = TRADES_DF
-
-        active_legs = df[(df['leg_status'] != 'CLOSED') & (df['client'] == client)]
-        active_legs = active_legs.sort_values(by='qty')
-
-        for index, row in active_legs.iterrows():
-
-            if row['qty'] < 0 :
-                buy_symbol, buy_qty, buy_price, buy_date = buy_order(angel, abs(row['qty']), row['token'], row['symbol'])
-                df.at[index, 'buy_price'] = buy_price
-                df.at[index, 'buy_date'] = buy_date
-                df.at[index, 'qty'] = abs(buy_qty)
-                df.at[index, 'leg_status'] = 'CLOSED'
-                df.at[index, 'leg_pnl'] = ((df.at[index, 'sell_price']-buy_price)*df.at[index, 'qty'])
-
-            elif row['qty'] > 0 :
-                sell_symbol, sell_qty, sell_price, sell_date = sell_order(angel, abs(row['qty']), row['token'], row['symbol'])
-                df.at[index, 'sell_price'] = sell_price
-                df.at[index, 'sell_date'] = sell_date
-                df.at[index, 'qty'] = abs(sell_qty)
-                df.at[index, 'leg_status'] = 'CLOSED'
-                df.at[index, 'leg_pnl'] = (sell_price-df.at[index, 'buy_price'])*df.at[index, 'qty']
-
-        active_legs = df[(df['leg_status'] != 'CLOSED') & (df['client'] == client)]
-        if not active_legs.empty:
-            logger.info(client + ": trade still open")
-            logger.debug("Trade Still open" + TRADES_DF)
-        else:
-            logger.info(client + ": trade exit completed successfully")
-    except:
-        Utils.write_log(client + ": trade exit failed")
-        print("\n" + client +": trade_exit exe failed")
+        client = angel_obj.Name
+        ltp = get_ltp(angel_obj, buy_token, buy_symbol)
+        buy_price = ltp + 0.5
+        buy_order_id = place_buy_order(angel_obj, buy_symbol, buy_token, buy_quantity, buy_price)
+        return handle_order_status(angel_obj, buy_order_id, "buy", buy_symbol, buy_token, client, modify_order)
+    except Exception as e:
+        print(f"{client}: buy_order execution failed")
+        print(e)
         traceback.print_exc()
-
-def auto_exit_trade_exec(inputparams):
-     
-    # inputparams = [{
-    #     "angel_obj":angel,
-    #     "client":client,
-    #     "trade_params":{}
-    # }]
+        return -1, -1, -1, -1
     
-    angel_obj = inputparams["angel_obj"]
-    client = inputparams["client"]
-    trade_params = inputparams["trade_params"]
+def create_sell_order(angel_obj: trade_user, sell_token: int, sell_symbol: str, sell_quantity: int):
+    try:
+        client = angel_obj.Name
+        ltp = get_ltp(angel_obj, sell_token, sell_symbol)
+        if ltp >= 1:
+            ltp -= 0.5
+        sell_order_id = place_sell_order(angel_obj, sell_symbol, sell_token, sell_quantity, ltp)
+        return handle_order_status(angel_obj, sell_order_id, "sell", sell_symbol, sell_token, client, modify_order)
+    except Exception as e:
+        print(f"{client}: sell_order execution failed")
+        print(e)
+        traceback.print_exc()
+        return -1, -1, -1, -1
 
-    while True:
-        nf_ltp = trade_utils.update_nf_ltp(angel_obj)
-        if nf_ltp != -1:
-            if trade_params['option_type'] == 'CE':
-                if nf_ltp > trade_params['nf_sl'] or nf_ltp < trade_params['nf_target']:
-                    params = [{
-                        "angel_obj":angel_obj,
-                        "client":client,
-                    }]
-                    exit_trade_exec(params)
-                    break
-            elif trade_params['option_type'] == 'PE':
-                if nf_ltp < trade_params['nf_sl'] or nf_ltp > trade_params['nf_target']:
-                    params = [{
-                        "angel_obj":angel_obj,
-                        "client":client,
-                    }]
-                    exit_trade_exec(params)
-                    break
+def cancel_order(angel_obj: trade_user, orderid: int):
+	OrderId = angel_obj.cancelOrder(order_id=orderid)
+	return OrderId
+
+def order_execute(angel_obj: trade_user, buy_strike: float, sell_strike: float, option_type: str, expiry: int) -> None:
+    try:
+        client = angel_obj.Name
+        buy_token, buy_symbol, sell_token, sell_symbol, qty = trade_utils.trade_req(angel_obj, buy_strike, sell_strike, option_type, expiry)
+        if qty > 200:
+            buy_sym, buy_qty, buy_price, buy_date = create_buy_order(angel_obj, buy_token, buy_symbol, qty)
+            
+            if buy_sym == buy_symbol and buy_qty == qty:
+                sell_sym, sell_qty, sell_price, sell_date = create_sell_order(angel_obj, sell_token, sell_symbol, qty)
+
+                if sell_sym == sell_symbol and abs(sell_qty) == qty:
+                    trade_utils.update_trade_dataframe(angel_obj, symbol=sell_symbol, token=sell_token, sell_price=sell_price, sell_date=sell_date, qty=sell_qty)
+                    trade_utils.update_trade_dataframe(angel_obj, symbol=buy_symbol, token=buy_token, buy_price=buy_price, buy_date=buy_date, qty=buy_qty)
+                    print(f"{client}: Complete order execution successful.")
+                else:
+                    print(f"{client}: Sell order execution failed.")
+            else:
+                print(f"{client}: Buy order execution failed.")
+        else:
+            print(f"{client}: Minimum margin requirement not fulfilled.")
+
+    except Exception as e:
+        print("Order execution failed for client %s: %s", client, str(e))
+        print(traceback.format_exc())
+        print("Order execution failed.")
+
+def exit_active_trades(angel_obj:trade_user) -> None:
+    """
+    Manage and exit all active trades for the specified client.
+    
+    1. Load all trades from the CSV file.
+    2. Filter and sort active trades.
+    3. Execute buy/sell orders based on trade quantity.
+    4. Update trade status in the DataFrame.
+    5. Save the updated DataFrame to the CSV file.
+    """
+
+    # TODO: Implement the django setup and then test this
+    try:
+        all_trades = TRADES_DF
+        client = angel_obj.Name
+
+        all_active_trades: pd.DataFrame = all_trades[(all_trades['trade_status'] == 'ACTIVE') & (all_trades['client'] == client)]
+        
+        if all_active_trades.empty:
+            logger.info(f"{client}: No active trades to process.")
+            return None
+        
+        all_active_trades = all_active_trades.sort_values(by='quantity')
+
+        updated_trades = []
+
+        for index, trade in all_active_trades.iterrows():
+            result: list = []
+            if trade['quantity'] < 0:
+                try:
+                    result = create_buy_order(angel_obj, client, abs(trade['quantity']), trade['token'], trade['symbol'])
+                    result.append('buy')
+                except Exception as e:
+                    logger.info(f"{client}: Buy order failed for symbol {trade['symbol']}: {str(e)}")
+                    logger.debug(f"Buy order failed for symbol {trade['symbol']}: {str(e)}")
+                    # traceback.print_exc()
+
+            elif trade['quantity'] > 0:
+                try:
+                    result = create_sell_order(angel_obj, client, abs(trade['quantity']), trade['token'], trade['symbol'])
+                    result.append('sell')
+                except Exception as e:
+                    logger.info(f"{client}: Sell order failed for symbol {trade['symbol']}: {str(e)}")
+                    logger.debug(f"Sell order failed for symbol {trade['symbol']}: {str(e)}")
+                    # traceback.print_exc()
+
+            if result:
+                updated_trades.append((index, result))
+
+        for index, result in updated_trades:
+            all_trades = trade_utils.update_trade_status(all_trades, index, result)
+
+        # all_trades.to_csv('trades.csv', index=False)
+        all_trades = TRADES_DF
+        logger.info(f"{client}: Trade processing completed successfully.")
+
+    except Exception as e:
+        logger.info(f"{client}: Trade exit processing failed: {str(e)}")
+        logger.debug(f"Trade exit processing failed: {str(e)}")
+        # traceback.print_exc()
+
+## Recheck If order status is allowed?
+
+def handle_order_status(angel: trade_user, order_id: int, order_type: str, symbol: str, token: int, order_method=modify_order) -> dict:
+    """Handle the order status and modify if necessary."""
+    for _ in range(3):
+        try:
+            sleep(1)
+            orderbook = angel.orderBook()
+            orders = orderbook.get('data', [])
+            
+            for order in orders:
+                if order['orderid'] == order_id:
+                    result = process_order_status(angel, symbol, token, order, order_type, order_method)
+                    if result is not None:
+                        return result
+            
+            print(f"Order {order_id} failed.")
+            return {-1, -1, -1, -1}
+
+        except Exception as e:
+            print(f"Orderbook calling failed, retrying...")
+
+    print(f"Order {order_id} failed after multiple tries.")
+    return {-1, -1, -1, -1}
+
+
+def process_order_status(angel: trade_user, symbol: str, token: int, order, order_type: str, order_method=modify_order) -> dict:
+    
+    status = order['status']
+    order_id = order['orderid']
+    
+    if status == 'open':
+        try:
+            ltp = angel.ltpData("NFO", symbol, token)['data']['ltp'] # Recheck
+            unfilled_qty = float(order['unfilledshares'])
+            adjusted_ltp = adjust_ltp(order_type, ltp)
+            new_order_id = order_method(angel, order_id, adjusted_ltp, symbol, token, unfilled_qty)
+            print(f"Order modified successfully: {new_order_id}")
+            return new_order_id
+        except Exception as e:
+            print(f"Order modification failed: {str(e)}")
+            return None
+
+    elif status == 'complete':
+        try:
+            symbol = order['tradingsymbol']
+            quantity = float(order['quantity'])
+            price = order['averageprice']
+            date = order['updatetime']
+            print(f"Order executed successfully: {symbol}, {quantity}, {price}, {date}")
+            return {symbol, quantity, price, date}
+        except Exception as e:
+            print(f"Order execution failed: {str(e)}")
+            return {-1, -1, -1, -1}
+
+    elif status in ['rejected', 'cancelled']:
+        print(f"Order {order_id} {status} due to {order['message']}")
+        return {-1, -1, -1, -1}
+
+    return None
+
+# <--------------------------------- END ------------------------------------->

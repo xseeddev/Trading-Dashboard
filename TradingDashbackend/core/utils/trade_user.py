@@ -1,3 +1,5 @@
+# This needs refactoring
+
 from TradingDashbackend.core.utils.api_login import angel_login
 from SmartApi.smartConnect import SmartConnect
 from TradingDashbackend.core.logger import setup_logger
